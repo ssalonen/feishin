@@ -156,7 +156,8 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
             result = await api.controller.quickConnectInitiate(url);
         } catch (err: any) {
             setIsQuickConnectLoading(false);
-            return toast.error({ message: err?.message ?? t('error.quickConnectNotActive', { defaultValue: 'Quick Connect is not active on this server' }) });
+            toast.error({ message: err?.message ?? t('error.quickConnectNotActive', { defaultValue: 'Quick Connect is not active on this server' }) });
+            return;
         }
 
         setQuickConnectCode(result.code);
@@ -171,7 +172,8 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
 
                 const data = await api.controller.authenticateWithQuickConnect(url, result.secret);
                 if (!data) {
-                    return toast.error({ message: t('error.authenticationFailed') });
+                    toast.error({ message: t('error.authenticationFailed') });
+                    return;
                 }
 
                 const serverItem: ServerListItemWithCredential = {
