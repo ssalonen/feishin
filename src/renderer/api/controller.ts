@@ -211,7 +211,14 @@ const addContext = <T extends { apiClientProps: any; context?: any }>(args: T): 
     };
 };
 
-export interface GeneralController extends Omit<Required<ControllerEndpoint>, 'authenticate' | 'authenticateWithQuickConnect' | 'isQuickConnectEnabled' | 'quickConnectInitiate' | 'quickConnectState'> {
+export interface GeneralController extends Omit<
+    Required<ControllerEndpoint>,
+    | 'authenticate'
+    | 'authenticateWithQuickConnect'
+    | 'isQuickConnectEnabled'
+    | 'quickConnectInitiate'
+    | 'quickConnectState'
+> {
     authenticate: (
         url: string,
         body: { legacy?: boolean; password: string; username: string },
@@ -241,15 +248,6 @@ export const controller: GeneralController = {
     },
     authenticateWithQuickConnect(url, secret) {
         return apiController('authenticateWithQuickConnect', ServerType.JELLYFIN)(url, secret);
-    },
-    isQuickConnectEnabled(url) {
-        return apiController('isQuickConnectEnabled', ServerType.JELLYFIN)(url);
-    },
-    quickConnectInitiate(url) {
-        return apiController('quickConnectInitiate', ServerType.JELLYFIN)(url);
-    },
-    quickConnectState(url, secret) {
-        return apiController('quickConnectState', ServerType.JELLYFIN)(url, secret);
     },
     createFavorite(args) {
         const server = getServerById(args.apiClientProps.serverId);
@@ -936,6 +934,9 @@ export const controller: GeneralController = {
             server.type,
         )?.(addContext({ ...args, apiClientProps: { ...args.apiClientProps, server } }));
     },
+    isQuickConnectEnabled(url) {
+        return apiController('isQuickConnectEnabled', ServerType.JELLYFIN)(url);
+    },
     jukeboxControl(args) {
         const server = getServerById(args.apiClientProps.serverId);
 
@@ -959,6 +960,12 @@ export const controller: GeneralController = {
             'movePlaylistItem',
             server.type,
         )?.(addContext({ ...args, apiClientProps: { ...args.apiClientProps, server } }));
+    },
+    quickConnectInitiate(url) {
+        return apiController('quickConnectInitiate', ServerType.JELLYFIN)(url);
+    },
+    quickConnectState(url, secret) {
+        return apiController('quickConnectState', ServerType.JELLYFIN)(url, secret);
     },
     refreshItems(args) {
         const server = getServerById(args.apiClientProps.serverId);

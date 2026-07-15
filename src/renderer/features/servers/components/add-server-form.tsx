@@ -125,9 +125,9 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
 
     const isSubmitDisabled = !form.values.name || !form.values.url || !form.values.username;
 
-    const [quickConnectCode, setQuickConnectCode] = useState<string | null>(null);
+    const [quickConnectCode, setQuickConnectCode] = useState<null | string>(null);
     const [isQuickConnectLoading, setIsQuickConnectLoading] = useState(false);
-    const quickConnectInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+    const quickConnectInterval = useRef<null | ReturnType<typeof setInterval>>(null);
 
     useEffect(() => {
         return () => {
@@ -156,7 +156,13 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
             result = await api.controller.quickConnectInitiate(url);
         } catch (err: any) {
             setIsQuickConnectLoading(false);
-            toast.error({ message: err?.message ?? t('error.quickConnectNotActive', { defaultValue: 'Quick Connect is not active on this server' }) });
+            toast.error({
+                message:
+                    err?.message ??
+                    t('error.quickConnectNotActive', {
+                        defaultValue: 'Quick Connect is not active on this server',
+                    }),
+            });
             return;
         }
 
@@ -205,7 +211,13 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
                 toast.success({ message: t('form.addServer.success') });
             } catch (err: any) {
                 stopQuickConnect();
-                toast.error({ message: err?.message ?? t('error.quickConnectDeactivated', { defaultValue: 'Quick Connect request expired' }) });
+                toast.error({
+                    message:
+                        err?.message ??
+                        t('error.quickConnectDeactivated', {
+                            defaultValue: 'Quick Connect request expired',
+                        }),
+                });
             }
         }, 5000);
     };
@@ -427,12 +439,15 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
                             <Button
                                 disabled={!form.values.name || !form.values.url}
                                 loading={isQuickConnectLoading}
-                                variant="subtle"
                                 onClick={quickConnectCode ? stopQuickConnect : handleQuickConnect}
+                                variant="subtle"
                             >
                                 {quickConnectCode
                                     ? t('common.cancel', { defaultValue: 'Cancel' })
-                                    : t('form.addServer.input', { context: 'quickConnect', defaultValue: 'Quick Connect' })}
+                                    : t('form.addServer.input', {
+                                          context: 'quickConnect',
+                                          defaultValue: 'Quick Connect',
+                                      })}
                             </Button>
                             {quickConnectCode && (
                                 <Text c="dimmed" size="sm" ta="center">

@@ -106,9 +106,9 @@ const LoginRoute = () => {
         },
     });
 
-    const [quickConnectCode, setQuickConnectCode] = useState<string | null>(null);
+    const [quickConnectCode, setQuickConnectCode] = useState<null | string>(null);
     const [isQuickConnectLoading, setIsQuickConnectLoading] = useState(false);
-    const quickConnectInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+    const quickConnectInterval = useRef<null | ReturnType<typeof setInterval>>(null);
 
     useEffect(() => {
         return () => {
@@ -136,7 +136,13 @@ const LoginRoute = () => {
             result = await api.controller.quickConnectInitiate(serverUrl);
         } catch (err: any) {
             setIsQuickConnectLoading(false);
-            toast.error({ message: err?.message ?? t('error.quickConnectNotActive', { defaultValue: 'Quick Connect is not active on this server' }) });
+            toast.error({
+                message:
+                    err?.message ??
+                    t('error.quickConnectNotActive', {
+                        defaultValue: 'Quick Connect is not active on this server',
+                    }),
+            });
             return;
         }
 
@@ -145,12 +151,18 @@ const LoginRoute = () => {
 
         quickConnectInterval.current = setInterval(async () => {
             try {
-                const authenticated = await api.controller.quickConnectState(serverUrl, result.secret);
+                const authenticated = await api.controller.quickConnectState(
+                    serverUrl,
+                    result.secret,
+                );
                 if (!authenticated) return;
 
                 stopQuickConnect();
 
-                const data = await api.controller.authenticateWithQuickConnect(serverUrl, result.secret);
+                const data = await api.controller.authenticateWithQuickConnect(
+                    serverUrl,
+                    result.secret,
+                );
                 if (!data) {
                     toast.error({ message: t('error.authenticationFailed') });
                     return;
@@ -201,7 +213,13 @@ const LoginRoute = () => {
                 toast.success({ message: t('form.addServer.success') });
             } catch (err: any) {
                 stopQuickConnect();
-                toast.error({ message: err?.message ?? t('error.quickConnectDeactivated', { defaultValue: 'Quick Connect request expired' }) });
+                toast.error({
+                    message:
+                        err?.message ??
+                        t('error.quickConnectDeactivated', {
+                            defaultValue: 'Quick Connect request expired',
+                        }),
+                });
             }
         }, 5000);
     };
@@ -392,12 +410,17 @@ const LoginRoute = () => {
                                     <Button
                                         fullWidth
                                         loading={isQuickConnectLoading}
+                                        onClick={
+                                            quickConnectCode ? stopQuickConnect : handleQuickConnect
+                                        }
                                         variant="subtle"
-                                        onClick={quickConnectCode ? stopQuickConnect : handleQuickConnect}
                                     >
                                         {quickConnectCode
                                             ? t('common.cancel', { defaultValue: 'Cancel' })
-                                            : t('form.addServer.input', { context: 'quickConnect', defaultValue: 'Quick Connect' })}
+                                            : t('form.addServer.input', {
+                                                  context: 'quickConnect',
+                                                  defaultValue: 'Quick Connect',
+                                              })}
                                     </Button>
                                     {quickConnectCode && (
                                         <Text c="dimmed" size="sm" ta="center">
