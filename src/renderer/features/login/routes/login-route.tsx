@@ -136,7 +136,8 @@ const LoginRoute = () => {
             result = await api.controller.quickConnectInitiate(serverUrl);
         } catch (err: any) {
             setIsQuickConnectLoading(false);
-            return toast.error({ message: err?.message ?? t('error.quickConnectNotActive', { defaultValue: 'Quick Connect is not active on this server' }) });
+            toast.error({ message: err?.message ?? t('error.quickConnectNotActive', { defaultValue: 'Quick Connect is not active on this server' }) });
+            return;
         }
 
         setQuickConnectCode(result.code);
@@ -151,7 +152,8 @@ const LoginRoute = () => {
 
                 const data = await api.controller.authenticateWithQuickConnect(serverUrl, result.secret);
                 if (!data) {
-                    return toast.error({ message: t('error.authenticationFailed') });
+                    toast.error({ message: t('error.authenticationFailed') });
+                    return;
                 }
 
                 const normalizedUrl = normalizeServerUrl(serverUrl);
