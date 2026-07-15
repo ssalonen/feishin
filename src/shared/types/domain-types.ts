@@ -1557,6 +1557,13 @@ export type ControllerEndpoint = {
         url: string,
         body: { legacy?: boolean; password: string; username: string },
     ) => Promise<AuthenticationResponse>;
+    authenticateWithQuickConnect?: (
+        url: string,
+        secret: string,
+    ) => Promise<AuthenticationResponse>;
+    isQuickConnectEnabled?: (url: string) => Promise<boolean>;
+    quickConnectInitiate?: (url: string) => Promise<{ code: string; secret: string }>;
+    quickConnectState?: (url: string, secret: string) => Promise<boolean>;
     createFavorite: (args: FavoriteArgs) => Promise<FavoriteResponse>;
     createInternetRadioStation: (
         args: CreateInternetRadioStationArgs,
@@ -1694,6 +1701,13 @@ export type InternalControllerEndpoint = {
         url: string,
         body: { legacy?: boolean; password: string; username: string },
     ) => Promise<AuthenticationResponse>;
+    authenticateWithQuickConnect?: (
+        url: string,
+        secret: string,
+    ) => Promise<AuthenticationResponse>;
+    isQuickConnectEnabled?: (url: string) => Promise<boolean>;
+    quickConnectInitiate?: (url: string) => Promise<{ code: string; secret: string }>;
+    quickConnectState?: (url: string, secret: string) => Promise<boolean>;
     createFavorite: (args: ReplaceApiClientProps<FavoriteArgs>) => Promise<FavoriteResponse>;
     createInternetRadioStation: (
         args: ReplaceApiClientProps<CreateInternetRadioStationArgs>,

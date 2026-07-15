@@ -349,6 +349,21 @@ const authenticate = z.object({
     User: user,
 });
 
+const quickConnectResult = z.object({
+    AppName: z.string().optional(),
+    AppVersion: z.string().optional(),
+    Authenticated: z.boolean().optional(),
+    Code: z.string().optional(),
+    DateAdded: z.string().optional(),
+    DeviceId: z.string().optional(),
+    DeviceName: z.string().optional(),
+    Secret: z.string().optional(),
+});
+
+const quickConnectAuthenticateParameters = z.object({
+    Secret: z.string(),
+});
+
 const genreItem = z.object({
     Id: z.string(),
     Name: z.string(),
@@ -908,6 +923,7 @@ export const jfType = {
         albumDetail: albumDetailParameters,
         albumList: albumListParameters,
         authenticate: authenticateParameters,
+        quickConnectAuthenticate: quickConnectAuthenticateParameters,
         createPlaylist: createPlaylistParameters,
         deletePlaylist: deletePlaylistParameters,
         favorite: favoriteParameters,
@@ -936,6 +952,7 @@ export const jfType = {
         albumArtistList,
         albumList,
         authenticate,
+        quickConnectResult,
         createPlaylist,
         deleteArtistImage,
         deletePlaylist,

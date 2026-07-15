@@ -291,6 +291,60 @@ export const JellyfinController: InternalControllerEndpoint = {
             username: res.body.User.Name,
         };
     },
+    authenticateWithQuickConnect: async (url, secret) => {
+        const cleanServerUrl = url.replace(/\/$/, '');
+
+        const res = await jfApiClient({ server: null, url: cleanServerUrl }).quickConnectAuthenticate({
+            body: { Secret: secret },
+        });
+
+        if (res.status !== 200) {
+            throw new Error('Failed to authenticate with Quick Connect');
+        }
+
+        return {
+            credential: res.body.AccessToken,
+            isAdmin: Boolean(res.body.User.Policy.IsAdministrator),
+            userId: res.body.User.Id,
+            username: res.body.User.Name,
+        };
+    },
+    isQuickConnectEnabled: async (url) => {
+        const cleanServerUrl = url.replace(/\/$/, '');
+
+        try {
+            const res = await jfApiClient({ server: null, url: cleanServerUrl }).quickConnectEnabled();
+            return res.status === 200 && res.body === true;
+        } catch {
+            return false;
+        }
+    },
+    quickConnectInitiate: async (url) => {
+        const cleanServerUrl = url.replace(/\/$/, '');
+
+        const res = await jfApiClient({ server: null, url: cleanServerUrl }).quickConnectInitiate({
+            body: null,
+        });
+
+        if (res.status !== 200 || !res.body.Secret || !res.body.Code) {
+            throw new Error('Quick Connect is not active on this server');
+        }
+
+        return { code: res.body.Code, secret: res.body.Secret };
+    },
+    quickConnectState: async (url, secret) => {
+        const cleanServerUrl = url.replace(/\/$/, '');
+
+        const res = await jfApiClient({ server: null, url: cleanServerUrl }).quickConnectState({
+            query: { secret },
+        });
+
+        if (res.status !== 200) {
+            throw new Error('Quick Connect request expired or was deactivated');
+        }
+
+        return Boolean(res.body.Authenticated);
+    },
     createFavorite: async (args) => {
         const { apiClientProps, query } = args;
 
