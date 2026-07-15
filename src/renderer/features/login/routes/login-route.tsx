@@ -1,6 +1,6 @@
 import isElectron from 'is-electron';
 import { nanoid } from 'nanoid/non-secure';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router';
 
@@ -105,6 +105,104 @@ const LoginRoute = () => {
             username: '',
         },
     });
+
+    const [quickConnectCode, setQuickConnectCode] = useState<string | null>(null);
+    const [isQuickConnectLoading, setIsQuickConnectLoading] = useState(false);
+    const quickConnectInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (quickConnectInterval.current) clearInterval(quickConnectInterval.current);
+        };
+    }, []);
+
+    const stopQuickConnect = () => {
+        if (quickConnectInterval.current) {
+            clearInterval(quickConnectInterval.current);
+            quickConnectInterval.current = null;
+        }
+        setQuickConnectCode(null);
+        setIsQuickConnectLoading(false);
+    };
+
+    const handleQuickConnect = async () => {
+        if (!serverUrl) return;
+
+        setIsQuickConnectLoading(true);
+        setQuickConnectCode(null);
+
+        let result: { code: string; secret: string };
+        try {
+            result = await api.controller.quickConnectInitiate(serverUrl);
+        } catch (err: any) {
+            setIsQuickConnectLoading(false);
+            return toast.error({ message: err?.message ?? t('error.quickConnectNotActive', { defaultValue: 'Quick Connect is not active on this server' }) });
+        }
+
+        setQuickConnectCode(result.code);
+        setIsQuickConnectLoading(false);
+
+        quickConnectInterval.current = setInterval(async () => {
+            try {
+                const authenticated = await api.controller.quickConnectState(serverUrl, result.secret);
+                if (!authenticated) return;
+
+                stopQuickConnect();
+
+                const data = await api.controller.authenticateWithQuickConnect(serverUrl, result.secret);
+                if (!data) {
+                    return toast.error({ message: t('error.authenticationFailed') });
+                }
+
+                const normalizedUrl = normalizeServerUrl(serverUrl);
+                const normalizedRemoteURL = normalizeServerUrl(remoteUrl);
+                const existingServer = serverLock
+                    ? findExistingServerLockServer(serverList, normalizedUrl, serverType)
+                    : undefined;
+
+                const serverId = existingServer?.id ?? nanoid();
+                const serverItem: ServerListItemWithCredential = {
+                    credential: data.credential,
+                    id: serverId,
+                    isAdmin: data.isAdmin,
+                    name: serverName,
+                    remoteUrl: normalizedRemoteURL,
+                    type: serverType as ServerType,
+                    url: normalizedUrl,
+                    userId: data.userId,
+                    username: data.username,
+                };
+
+                if (existingServer) {
+                    updateServer(existingServer.id, {
+                        credential: data.credential,
+                        isAdmin: data.isAdmin,
+                        name: serverName,
+                        remoteUrl: normalizedRemoteURL,
+                        url: normalizedUrl,
+                        userId: data.userId,
+                        username: data.username,
+                    });
+                    const updated = getServerById(existingServer.id);
+                    if (updated) setCurrentServer(updated);
+                } else {
+                    addServer(serverItem);
+                    setCurrentServer(serverItem);
+                }
+
+                if (serverLock) {
+                    Object.values(useAuthStore.getState().serverList).forEach((server) => {
+                        if (server.id !== serverId) deleteServer(server.id);
+                    });
+                }
+
+                toast.success({ message: t('form.addServer.success') });
+            } catch (err: any) {
+                stopQuickConnect();
+                toast.error({ message: err?.message ?? t('error.quickConnectDeactivated', { defaultValue: 'Quick Connect request expired' }) });
+            }
+        }, 5000);
+    };
 
     // If server lock is not enabled, or we already have a server, redirect to home
     if (currentServer) {
@@ -287,6 +385,29 @@ const LoginRoute = () => {
                                     defaultValue: 'Login',
                                 })}
                             </Button>
+                            {serverType === ServerType.JELLYFIN && (
+                                <Stack gap="xs">
+                                    <Button
+                                        fullWidth
+                                        loading={isQuickConnectLoading}
+                                        variant="subtle"
+                                        onClick={quickConnectCode ? stopQuickConnect : handleQuickConnect}
+                                    >
+                                        {quickConnectCode
+                                            ? t('common.cancel', { defaultValue: 'Cancel' })
+                                            : t('form.addServer.input', { context: 'quickConnect', defaultValue: 'Quick Connect' })}
+                                    </Button>
+                                    {quickConnectCode && (
+                                        <Text c="dimmed" size="sm" ta="center">
+                                            {t('form.addServer.input', {
+                                                code: quickConnectCode,
+                                                context: 'quickConnectCode',
+                                                defaultValue: `Enter code {{code}} in your Jellyfin web UI to authorize`,
+                                            })}
+                                        </Text>
+                                    )}
+                                </Stack>
+                            )}
                         </Stack>
                     </form>
                 </Paper>

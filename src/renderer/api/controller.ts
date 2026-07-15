@@ -211,12 +211,16 @@ const addContext = <T extends { apiClientProps: any; context?: any }>(args: T): 
     };
 };
 
-export interface GeneralController extends Omit<Required<ControllerEndpoint>, 'authenticate'> {
+export interface GeneralController extends Omit<Required<ControllerEndpoint>, 'authenticate' | 'authenticateWithQuickConnect' | 'isQuickConnectEnabled' | 'quickConnectInitiate' | 'quickConnectState'> {
     authenticate: (
         url: string,
         body: { legacy?: boolean; password: string; username: string },
         type: ServerType,
     ) => Promise<AuthenticationResponse>;
+    authenticateWithQuickConnect: (url: string, secret: string) => Promise<AuthenticationResponse>;
+    isQuickConnectEnabled: (url: string) => Promise<boolean>;
+    quickConnectInitiate: (url: string) => Promise<{ code: string; secret: string }>;
+    quickConnectState: (url: string, secret: string) => Promise<boolean>;
 }
 
 export const controller: GeneralController = {
@@ -234,6 +238,18 @@ export const controller: GeneralController = {
     },
     authenticate(url, body, type) {
         return apiController('authenticate', type)(url, body);
+    },
+    authenticateWithQuickConnect(url, secret) {
+        return apiController('authenticateWithQuickConnect', ServerType.JELLYFIN)(url, secret);
+    },
+    isQuickConnectEnabled(url) {
+        return apiController('isQuickConnectEnabled', ServerType.JELLYFIN)(url);
+    },
+    quickConnectInitiate(url) {
+        return apiController('quickConnectInitiate', ServerType.JELLYFIN)(url);
+    },
+    quickConnectState(url, secret) {
+        return apiController('quickConnectState', ServerType.JELLYFIN)(url, secret);
     },
     createFavorite(args) {
         const server = getServerById(args.apiClientProps.serverId);
