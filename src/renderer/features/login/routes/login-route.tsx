@@ -1,6 +1,6 @@
 import isElectron from 'is-electron';
 import { nanoid } from 'nanoid/non-secure';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router';
 
@@ -18,6 +18,8 @@ import JellyfinIcon from '/@/renderer/features/servers/assets/jellyfin.png';
 import NavidromeIcon from '/@/renderer/features/servers/assets/navidrome.png';
 import SubsonicIcon from '/@/renderer/features/servers/assets/opensubsonic.png';
 import { IgnoreCorsSslSwitches } from '/@/renderer/features/servers/components/ignore-cors-ssl-switches';
+import { QuickConnectButton } from '/@/renderer/features/servers/components/quick-connect-button';
+import { useQuickConnect } from '/@/renderer/features/servers/hooks/use-quick-connect';
 import { AnimatedPage } from '/@/renderer/features/shared/components/animated-page';
 import { PageErrorBoundary } from '/@/renderer/features/shared/components/page-error-boundary';
 import { AppRoute } from '/@/renderer/router/routes';
@@ -106,123 +108,58 @@ const LoginRoute = () => {
         },
     });
 
-    const [quickConnectCode, setQuickConnectCode] = useState<null | string>(null);
-    const [isQuickConnectLoading, setIsQuickConnectLoading] = useState(false);
-    const quickConnectInterval = useRef<null | ReturnType<typeof setInterval>>(null);
+    const {
+        code: quickConnectCode,
+        isLoading: isQuickConnectLoading,
+        start: startQuickConnect,
+        stop: stopQuickConnect,
+    } = useQuickConnect({
+        onAuthenticated: (data) => {
+            const normalizedUrl = normalizeServerUrl(serverUrl);
+            const normalizedRemoteURL = normalizeServerUrl(remoteUrl);
+            const existingServer = serverLock
+                ? findExistingServerLockServer(serverList, normalizedUrl, serverType)
+                : undefined;
 
-    useEffect(() => {
-        return () => {
-            if (quickConnectInterval.current) clearInterval(quickConnectInterval.current);
-        };
-    }, []);
+            const serverId = existingServer?.id ?? nanoid();
+            const serverItem: ServerListItemWithCredential = {
+                credential: data.credential,
+                id: serverId,
+                isAdmin: data.isAdmin,
+                name: serverName,
+                remoteUrl: normalizedRemoteURL,
+                type: serverType as ServerType,
+                url: normalizedUrl,
+                userId: data.userId,
+                username: data.username,
+            };
 
-    const stopQuickConnect = () => {
-        if (quickConnectInterval.current) {
-            clearInterval(quickConnectInterval.current);
-            quickConnectInterval.current = null;
-        }
-        setQuickConnectCode(null);
-        setIsQuickConnectLoading(false);
-    };
-
-    const handleQuickConnect = async () => {
-        if (!serverUrl) return;
-
-        setIsQuickConnectLoading(true);
-        setQuickConnectCode(null);
-
-        let result: { code: string; secret: string };
-        try {
-            result = await api.controller.quickConnectInitiate(serverUrl);
-        } catch (err: any) {
-            setIsQuickConnectLoading(false);
-            toast.error({
-                message:
-                    err?.message ??
-                    t('error.quickConnectNotActive', {
-                        defaultValue: 'Quick Connect is not active on this server',
-                    }),
-            });
-            return;
-        }
-
-        setQuickConnectCode(result.code);
-        setIsQuickConnectLoading(false);
-
-        quickConnectInterval.current = setInterval(async () => {
-            try {
-                const authenticated = await api.controller.quickConnectState(
-                    serverUrl,
-                    result.secret,
-                );
-                if (!authenticated) return;
-
-                stopQuickConnect();
-
-                const data = await api.controller.authenticateWithQuickConnect(
-                    serverUrl,
-                    result.secret,
-                );
-                if (!data) {
-                    toast.error({ message: t('error.authenticationFailed') });
-                    return;
-                }
-
-                const normalizedUrl = normalizeServerUrl(serverUrl);
-                const normalizedRemoteURL = normalizeServerUrl(remoteUrl);
-                const existingServer = serverLock
-                    ? findExistingServerLockServer(serverList, normalizedUrl, serverType)
-                    : undefined;
-
-                const serverId = existingServer?.id ?? nanoid();
-                const serverItem: ServerListItemWithCredential = {
+            if (existingServer) {
+                updateServer(existingServer.id, {
                     credential: data.credential,
-                    id: serverId,
                     isAdmin: data.isAdmin,
                     name: serverName,
                     remoteUrl: normalizedRemoteURL,
-                    type: serverType as ServerType,
                     url: normalizedUrl,
                     userId: data.userId,
                     username: data.username,
-                };
+                });
+                const updated = getServerById(existingServer.id);
+                if (updated) setCurrentServer(updated);
+            } else {
+                addServer(serverItem);
+                setCurrentServer(serverItem);
+            }
 
-                if (existingServer) {
-                    updateServer(existingServer.id, {
-                        credential: data.credential,
-                        isAdmin: data.isAdmin,
-                        name: serverName,
-                        remoteUrl: normalizedRemoteURL,
-                        url: normalizedUrl,
-                        userId: data.userId,
-                        username: data.username,
-                    });
-                    const updated = getServerById(existingServer.id);
-                    if (updated) setCurrentServer(updated);
-                } else {
-                    addServer(serverItem);
-                    setCurrentServer(serverItem);
-                }
-
-                if (serverLock) {
-                    Object.values(useAuthStore.getState().serverList).forEach((server) => {
-                        if (server.id !== serverId) deleteServer(server.id);
-                    });
-                }
-
-                toast.success({ message: t('form.addServer.success') });
-            } catch (err: any) {
-                stopQuickConnect();
-                toast.error({
-                    message:
-                        err?.message ??
-                        t('error.quickConnectDeactivated', {
-                            defaultValue: 'Quick Connect request expired',
-                        }),
+            if (serverLock) {
+                Object.values(useAuthStore.getState().serverList).forEach((server) => {
+                    if (server.id !== serverId) deleteServer(server.id);
                 });
             }
-        }, 5000);
-    };
+
+            toast.success({ message: t('form.addServer.success') });
+        },
+    });
 
     // If server lock is not enabled, or we already have a server, redirect to home
     if (currentServer) {
@@ -406,32 +343,12 @@ const LoginRoute = () => {
                                 })}
                             </Button>
                             {serverType === ServerType.JELLYFIN && (
-                                <Stack gap="xs">
-                                    <Button
-                                        fullWidth
-                                        loading={isQuickConnectLoading}
-                                        onClick={
-                                            quickConnectCode ? stopQuickConnect : handleQuickConnect
-                                        }
-                                        variant="subtle"
-                                    >
-                                        {quickConnectCode
-                                            ? t('common.cancel', { defaultValue: 'Cancel' })
-                                            : t('form.addServer.input', {
-                                                  context: 'quickConnect',
-                                                  defaultValue: 'Quick Connect',
-                                              })}
-                                    </Button>
-                                    {quickConnectCode && (
-                                        <Text c="dimmed" size="sm" ta="center">
-                                            {t('form.addServer.input', {
-                                                code: quickConnectCode,
-                                                context: 'quickConnectCode',
-                                                defaultValue: `Enter code {{code}} in your Jellyfin web UI to authorize`,
-                                            })}
-                                        </Text>
-                                    )}
-                                </Stack>
+                                <QuickConnectButton
+                                    code={quickConnectCode}
+                                    isLoading={isQuickConnectLoading}
+                                    onStart={() => startQuickConnect(serverUrl)}
+                                    onStop={stopQuickConnect}
+                                />
                             )}
                         </Stack>
                     </form>

@@ -1,7 +1,7 @@
 import { closeAllModals } from '@mantine/modals';
 import isElectron from 'is-electron';
 import { nanoid } from 'nanoid/non-secure';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { api } from '/@/renderer/api';
@@ -13,8 +13,9 @@ import JellyfinIcon from '/@/renderer/features/servers/assets/jellyfin.png';
 import NavidromeIcon from '/@/renderer/features/servers/assets/navidrome.png';
 import SubsonicIcon from '/@/renderer/features/servers/assets/opensubsonic.png';
 import { IgnoreCorsSslSwitches } from '/@/renderer/features/servers/components/ignore-cors-ssl-switches';
+import { QuickConnectButton } from '/@/renderer/features/servers/components/quick-connect-button';
+import { useQuickConnect } from '/@/renderer/features/servers/hooks/use-quick-connect';
 import { useAuthStoreActions, useServerList } from '/@/renderer/store';
-import { Button } from '/@/shared/components/button/button';
 import { Checkbox } from '/@/shared/components/checkbox/checkbox';
 import { Divider } from '/@/shared/components/divider/divider';
 import { Group } from '/@/shared/components/group/group';
@@ -125,102 +126,43 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
 
     const isSubmitDisabled = !form.values.name || !form.values.url || !form.values.username;
 
-    const [quickConnectCode, setQuickConnectCode] = useState<null | string>(null);
-    const [isQuickConnectLoading, setIsQuickConnectLoading] = useState(false);
-    const quickConnectInterval = useRef<null | ReturnType<typeof setInterval>>(null);
+    const {
+        code: quickConnectCode,
+        isLoading: isQuickConnectLoading,
+        start: startQuickConnect,
+        stop: stopQuickConnect,
+    } = useQuickConnect({
+        onAuthenticated: (data) => {
+            const url = form.values.url;
+            const serverItem: ServerListItemWithCredential = {
+                credential: data.credential,
+                id: nanoid(),
+                isAdmin: data.isAdmin,
+                name: form.values.name,
+                type: ServerType.JELLYFIN,
+                url: url.replace(/\/$/, ''),
+                userId: data.userId,
+                username: data.username,
+            };
 
-    useEffect(() => {
-        return () => {
-            if (quickConnectInterval.current) clearInterval(quickConnectInterval.current);
-        };
-    }, []);
-
-    const stopQuickConnect = () => {
-        if (quickConnectInterval.current) {
-            clearInterval(quickConnectInterval.current);
-            quickConnectInterval.current = null;
-        }
-        setQuickConnectCode(null);
-        setIsQuickConnectLoading(false);
-    };
-
-    const handleQuickConnect = async () => {
-        const url = form.values.url;
-        if (!url || !form.values.name) return;
-
-        setIsQuickConnectLoading(true);
-        setQuickConnectCode(null);
-
-        let result: { code: string; secret: string };
-        try {
-            result = await api.controller.quickConnectInitiate(url);
-        } catch (err: any) {
-            setIsQuickConnectLoading(false);
-            toast.error({
-                message:
-                    err?.message ??
-                    t('error.quickConnectNotActive', {
-                        defaultValue: 'Quick Connect is not active on this server',
-                    }),
-            });
-            return;
-        }
-
-        setQuickConnectCode(result.code);
-        setIsQuickConnectLoading(false);
-
-        quickConnectInterval.current = setInterval(async () => {
-            try {
-                const authenticated = await api.controller.quickConnectState(url, result.secret);
-                if (!authenticated) return;
-
-                stopQuickConnect();
-
-                const data = await api.controller.authenticateWithQuickConnect(url, result.secret);
-                if (!data) {
-                    toast.error({ message: t('error.authenticationFailed') });
-                    return;
-                }
-
-                const serverItem: ServerListItemWithCredential = {
-                    credential: data.credential,
-                    id: nanoid(),
-                    isAdmin: data.isAdmin,
-                    name: form.values.name,
-                    type: ServerType.JELLYFIN,
-                    url: url.replace(/\/$/, ''),
-                    userId: data.userId,
-                    username: data.username,
-                };
-
-                if (form.values.remoteUrl?.trim()) {
-                    serverItem.remoteUrl = form.values.remoteUrl.trim().replace(/\/$/, '');
-                }
-
-                if (form.values.preferRemoteUrl !== undefined) {
-                    serverItem.preferRemoteUrl = form.values.preferRemoteUrl;
-                }
-
-                if (form.values.preferInstantMix !== undefined) {
-                    serverItem.preferInstantMix = form.values.preferInstantMix;
-                }
-
-                addServer(serverItem);
-                setCurrentServer(serverItem);
-                closeAllModals();
-                toast.success({ message: t('form.addServer.success') });
-            } catch (err: any) {
-                stopQuickConnect();
-                toast.error({
-                    message:
-                        err?.message ??
-                        t('error.quickConnectDeactivated', {
-                            defaultValue: 'Quick Connect request expired',
-                        }),
-                });
+            if (form.values.remoteUrl?.trim()) {
+                serverItem.remoteUrl = form.values.remoteUrl.trim().replace(/\/$/, '');
             }
-        }, 5000);
-    };
+
+            if (form.values.preferRemoteUrl !== undefined) {
+                serverItem.preferRemoteUrl = form.values.preferRemoteUrl;
+            }
+
+            if (form.values.preferInstantMix !== undefined) {
+                serverItem.preferInstantMix = form.values.preferInstantMix;
+            }
+
+            addServer(serverItem);
+            setCurrentServer(serverItem);
+            closeAllModals();
+            toast.success({ message: t('form.addServer.success') });
+        },
+    });
 
     const fillServerDetails = (server: DiscoveredServerItem) => {
         form.setValues({ ...server });
@@ -435,30 +377,13 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
                         />
                     )}
                     {form.values.type === ServerType.JELLYFIN && (
-                        <Stack gap="xs">
-                            <Button
-                                disabled={!form.values.name || !form.values.url}
-                                loading={isQuickConnectLoading}
-                                onClick={quickConnectCode ? stopQuickConnect : handleQuickConnect}
-                                variant="subtle"
-                            >
-                                {quickConnectCode
-                                    ? t('common.cancel', { defaultValue: 'Cancel' })
-                                    : t('form.addServer.input', {
-                                          context: 'quickConnect',
-                                          defaultValue: 'Quick Connect',
-                                      })}
-                            </Button>
-                            {quickConnectCode && (
-                                <Text c="dimmed" size="sm" ta="center">
-                                    {t('form.addServer.input', {
-                                        code: quickConnectCode,
-                                        context: 'quickConnectCode',
-                                        defaultValue: `Enter code {{code}} in your Jellyfin web UI to authorize`,
-                                    })}
-                                </Text>
-                            )}
-                        </Stack>
+                        <QuickConnectButton
+                            code={quickConnectCode}
+                            disabled={!form.values.name || !form.values.url}
+                            isLoading={isQuickConnectLoading}
+                            onStart={() => startQuickConnect(form.values.url)}
+                            onStop={stopQuickConnect}
+                        />
                     )}
                     {isElectron() && (
                         <>
