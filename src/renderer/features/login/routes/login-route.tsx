@@ -1,6 +1,6 @@
 import isElectron from 'is-electron';
 import { nanoid } from 'nanoid/non-secure';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router';
 
@@ -18,8 +18,12 @@ import JellyfinIcon from '/@/renderer/features/servers/assets/jellyfin.png';
 import NavidromeIcon from '/@/renderer/features/servers/assets/navidrome.png';
 import SubsonicIcon from '/@/renderer/features/servers/assets/opensubsonic.png';
 import { IgnoreCorsSslSwitches } from '/@/renderer/features/servers/components/ignore-cors-ssl-switches';
-import { QuickConnectButton } from '/@/renderer/features/servers/components/quick-connect-button';
-import { useQuickConnect } from '/@/renderer/features/servers/hooks/use-quick-connect';
+import { JellyfinQuickConnectButton } from '/@/renderer/features/servers/components/jellyfin-quick-connect-button';
+import {
+    JellyfinSignInMethod,
+    JellyfinSignInMethodPicker,
+} from '/@/renderer/features/servers/components/jellyfin-sign-in-method-picker';
+import { useJellyfinQuickConnect } from '/@/renderer/features/servers/hooks/use-jellyfin-quick-connect';
 import { AnimatedPage } from '/@/renderer/features/shared/components/animated-page';
 import { PageErrorBoundary } from '/@/renderer/features/shared/components/page-error-boundary';
 import { AppRoute } from '/@/renderer/router/routes';
@@ -108,12 +112,15 @@ const LoginRoute = () => {
         },
     });
 
+    const [signInMethod, setSignInMethod] = useState<JellyfinSignInMethod>('password');
+    const showQuickConnect = serverType === ServerType.JELLYFIN && signInMethod === 'quickConnect';
+
     const {
         code: quickConnectCode,
         isLoading: isQuickConnectLoading,
         start: startQuickConnect,
         stop: stopQuickConnect,
-    } = useQuickConnect({
+    } = useJellyfinQuickConnect({
         onAuthenticated: (data) => {
             const normalizedUrl = normalizeServerUrl(serverUrl);
             const normalizedRemoteURL = normalizeServerUrl(remoteUrl);
@@ -160,6 +167,10 @@ const LoginRoute = () => {
             toast.success({ message: t('form.addServer.success') });
         },
     });
+
+    useEffect(() => {
+        if (!showQuickConnect) stopQuickConnect();
+    }, [showQuickConnect, stopQuickConnect]);
 
     // If server lock is not enabled, or we already have a server, redirect to home
     if (currentServer) {
@@ -282,7 +293,7 @@ const LoginRoute = () => {
         return setIsLoading(false);
     });
 
-    const isSubmitDisabled = !form.values.username || !form.values.password;
+    const isSubmitDisabled = !showQuickConnect && (!form.values.username || !form.values.password);
     const serverIcon = SERVER_ICONS[serverType as ServerType];
     const serverDisplayName = SERVER_NAMES[serverType as ServerType];
 
@@ -311,43 +322,59 @@ const LoginRoute = () => {
                             </Stack>
 
                             <Stack gap="md">
-                                <TextInput
-                                    data-autofocus
-                                    label={t('form.addServer.input', {
-                                        context: 'username',
-                                    })}
-                                    required
-                                    variant="filled"
-                                    {...form.getInputProps('username')}
-                                />
-                                <PasswordInput
-                                    label={t('form.addServer.input', {
-                                        context: 'password',
-                                    })}
-                                    required
-                                    variant="filled"
-                                    {...form.getInputProps('password')}
-                                />
                                 <IgnoreCorsSslSwitches />
+                                {serverType === ServerType.JELLYFIN && (
+                                    <JellyfinSignInMethodPicker
+                                        onChange={(method) => {
+                                            setSignInMethod(method);
+                                            if (method !== 'quickConnect') stopQuickConnect();
+                                        }}
+                                        value={signInMethod}
+                                    />
+                                )}
+                                {!showQuickConnect && (
+                                    <>
+                                        <TextInput
+                                            data-autofocus
+                                            label={t('form.addServer.input', {
+                                                context: 'username',
+                                            })}
+                                            required
+                                            variant="filled"
+                                            {...form.getInputProps('username')}
+                                        />
+                                        <PasswordInput
+                                            label={t('form.addServer.input', {
+                                                context: 'password',
+                                            })}
+                                            required
+                                            variant="filled"
+                                            {...form.getInputProps('password')}
+                                        />
+                                    </>
+                                )}
                             </Stack>
 
-                            <Button
-                                disabled={isSubmitDisabled}
-                                fullWidth
-                                loading={isLoading}
-                                type="submit"
-                                variant="filled"
-                            >
-                                {t('common.login', {
-                                    defaultValue: 'Login',
-                                })}
-                            </Button>
-                            {serverType === ServerType.JELLYFIN && (
-                                <QuickConnectButton
+                            {!showQuickConnect && (
+                                <Button
+                                    disabled={isSubmitDisabled}
+                                    fullWidth
+                                    loading={isLoading}
+                                    type="submit"
+                                    variant="filled"
+                                >
+                                    {t('common.login', {
+                                        defaultValue: 'Login',
+                                    })}
+                                </Button>
+                            )}
+                            {showQuickConnect && (
+                                <JellyfinQuickConnectButton
                                     code={quickConnectCode}
                                     isLoading={isQuickConnectLoading}
                                     onStart={() => startQuickConnect(serverUrl)}
                                     onStop={stopQuickConnect}
+                                    url={serverUrl}
                                 />
                             )}
                         </Stack>
