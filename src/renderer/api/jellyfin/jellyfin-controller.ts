@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 import { createAuthHeader, jfApiClient } from '/@/renderer/api/jellyfin/jellyfin-api';
 import { useRadioStore } from '/@/renderer/features/radio/store/radio-store';
-import { getServerUrl } from '/@/renderer/utils/normalize-server-url';
+import { getServerUrl, normalizeServerUrl } from '/@/renderer/utils/normalize-server-url';
 import { jfNormalize } from '/@/shared/api/jellyfin/jellyfin-normalize';
 import { JFSongListSort, JFSortOrder, jfType } from '/@/shared/api/jellyfin/jellyfin-types';
 import { getFeatures, hasFeature, sortSongList, VersionInfo } from '/@/shared/api/utils';
@@ -243,9 +243,9 @@ export const JellyfinController: InternalControllerEndpoint = {
         return null;
     },
     authenticate: async (url, body) => {
-        const cleanServerUrl = url.replace(/\/$/, '');
+        const normalizedUrl = normalizeServerUrl(url);
 
-        const res = await jfApiClient({ server: null, url: cleanServerUrl }).authenticate({
+        const res = await jfApiClient({ server: null, url: normalizedUrl }).authenticate({
             body: {
                 Pw: body.password,
                 Username: body.username,
@@ -264,11 +264,11 @@ export const JellyfinController: InternalControllerEndpoint = {
         };
     },
     authenticateWithQuickConnect: async (url, secret) => {
-        const cleanServerUrl = url.replace(/\/$/, '');
+        const normalizedUrl = normalizeServerUrl(url);
 
         const res = await jfApiClient({
             server: null,
-            url: cleanServerUrl,
+            url: normalizedUrl,
         }).quickConnectAuthenticate({
             body: { Secret: secret },
         });
@@ -1591,12 +1591,12 @@ export const JellyfinController: InternalControllerEndpoint = {
         };
     },
     isQuickConnectEnabled: async (url) => {
-        const cleanServerUrl = url.replace(/\/$/, '');
+        const normalizedUrl = normalizeServerUrl(url);
 
         try {
             const res = await jfApiClient({
                 server: null,
-                url: cleanServerUrl,
+                url: normalizedUrl,
             }).quickConnectEnabled();
             return res.status === 200 && res.body === true;
         } catch {
@@ -1619,9 +1619,9 @@ export const JellyfinController: InternalControllerEndpoint = {
         }
     },
     quickConnectInitiate: async (url) => {
-        const cleanServerUrl = url.replace(/\/$/, '');
+        const normalizedUrl = normalizeServerUrl(url);
 
-        const res = await jfApiClient({ server: null, url: cleanServerUrl }).quickConnectInitiate({
+        const res = await jfApiClient({ server: null, url: normalizedUrl }).quickConnectInitiate({
             body: null,
         });
 
@@ -1632,9 +1632,9 @@ export const JellyfinController: InternalControllerEndpoint = {
         return { code: res.body.Code, secret: res.body.Secret };
     },
     quickConnectState: async (url, secret) => {
-        const cleanServerUrl = url.replace(/\/$/, '');
+        const normalizedUrl = normalizeServerUrl(url);
 
-        const res = await jfApiClient({ server: null, url: cleanServerUrl }).quickConnectState({
+        const res = await jfApiClient({ server: null, url: normalizedUrl }).quickConnectState({
             query: { secret },
         });
 
