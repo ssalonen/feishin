@@ -348,7 +348,7 @@
             "ignoreCors": "Ignore CORS ($t(common.restartRequired))",
             "ignoreSsl": "Ignore SSL ($t(common.restartRequired))",
             "input_jellyfinQuickConnect": "Quick Connect",
-            "input_jellyfinQuickConnectCode": "Enter code {{code}} in your Jellyfin web UI to authorize",
+            "input_jellyfinQuickConnectCode": "Enter this code in your Jellyfin web UI to authorize",
             "input_jellyfinQuickConnectCodeCopied": "Copied",
             "input_jellyfinQuickConnectCodeCopy": "Copy code",
             "input_jellyfinQuickConnectOpen": "Open Quick Connect",
