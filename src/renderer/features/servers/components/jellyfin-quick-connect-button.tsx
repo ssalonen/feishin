@@ -1,9 +1,11 @@
+import { Loader } from '@mantine/core';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { normalizeServerUrl } from '/@/renderer/utils/normalize-server-url';
 import { ActionIcon } from '/@/shared/components/action-icon/action-icon';
 import { Button } from '/@/shared/components/button/button';
+import { Code } from '/@/shared/components/code/code';
 import { CopyButton } from '/@/shared/components/copy-button/copy-button';
 import { Group } from '/@/shared/components/group/group';
 import { Icon } from '/@/shared/components/icon/icon';
@@ -61,10 +63,11 @@ export const JellyfinQuickConnectButton = ({
 
     return (
         <Stack gap="xs">
-            <Group gap={4} justify="center">
-                <Text c="dimmed" size="sm" ta="center">
-                    {t('form.addServer.input', { code, context: 'jellyfinQuickConnectCode' })}
-                </Text>
+            <Text size="sm" ta="center">
+                {t('form.addServer.input', { context: 'jellyfinQuickConnectCode' })}
+            </Text>
+            <Group gap={6} justify="center">
+                <Code fz="xl">{code}</Code>
                 <CopyButton timeout={2000} value={code}>
                     {({ copied, copy }) => (
                         <Tooltip
@@ -89,15 +92,24 @@ export const JellyfinQuickConnectButton = ({
                     isLink
                     rel="noopener noreferrer"
                     size="sm"
-                    ta="center"
+                    style={{
+                        alignItems: 'center',
+                        display: 'flex',
+                        gap: 4,
+                        justifyContent: 'center',
+                    }}
                     target="_blank"
                 >
                     {t('form.addServer.input', { context: 'jellyfinQuickConnectOpen' })}
+                    <Icon icon="externalLink" size="xs" />
                 </Text>
             )}
-            <Text c="dimmed" size="xs" ta="center">
-                {t('form.addServer.input', { context: 'jellyfinQuickConnectWaiting' })}
-            </Text>
+            <Group gap={6} justify="center">
+                <Loader size="xs" />
+                <Text c="dimmed" size="xs">
+                    {t('form.addServer.input', { context: 'jellyfinQuickConnectWaiting' })}
+                </Text>
+            </Group>
             <Button fullWidth onClick={onStop} variant="default">
                 {t('common.cancel')}
             </Button>
