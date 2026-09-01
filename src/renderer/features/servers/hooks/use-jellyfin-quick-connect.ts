@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { api } from '/@/renderer/api';
 import { toast } from '/@/shared/components/toast/toast';
-import { AuthenticationResponse } from '/@/shared/types/domain-types';
+import { AuthenticationResponse, ServerType } from '/@/shared/types/domain-types';
 
 interface UseJellyfinQuickConnectProps {
     onAuthenticated: (data: AuthenticationResponse) => Promise<void> | void;
@@ -47,7 +47,11 @@ export function useJellyfinQuickConnect({ onAuthenticated }: UseJellyfinQuickCon
 
             let result: { code: string; secret: string };
             try {
-                result = await api.controller.quickConnectInitiate(url);
+                result = await api.controller.authenticate(
+                    url,
+                    { action: 'quickConnectInitiate' },
+                    ServerType.JELLYFIN,
+                );
             } catch (err: any) {
                 setIsLoading(false);
                 toast.error({
@@ -61,17 +65,19 @@ export function useJellyfinQuickConnect({ onAuthenticated }: UseJellyfinQuickCon
 
             intervalRef.current = setInterval(async () => {
                 try {
-                    const authenticated = await api.controller.quickConnectState(
+                    const authenticated = await api.controller.authenticate(
                         url,
-                        result.secret,
+                        { action: 'quickConnectState', secret: result.secret },
+                        ServerType.JELLYFIN,
                     );
                     if (!authenticated) return;
 
                     stop();
 
-                    const data = await api.controller.authenticateWithQuickConnect(
+                    const data = await api.controller.authenticate(
                         url,
-                        result.secret,
+                        { action: 'quickConnectAuthenticate', secret: result.secret },
+                        ServerType.JELLYFIN,
                     );
                     if (!data) {
                         toast.error({ message: t('error.authenticationFailed') });

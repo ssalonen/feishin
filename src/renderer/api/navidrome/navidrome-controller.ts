@@ -12,7 +12,6 @@ import { getFeatures, hasFeature, hasFeatureWithVersion, VersionInfo } from '/@/
 import {
     albumArtistListSortMap,
     albumListSortMap,
-    AuthenticationResponse,
     DeleteArtistImageArgs,
     DeleteArtistImageResponse,
     DeleteInternetRadioStationImageArgs,
@@ -141,7 +140,11 @@ export const NavidromeController: InternalControllerEndpoint = {
 
         return null;
     },
-    authenticate: async (url, body): Promise<AuthenticationResponse> => {
+    authenticate: async (url, body) => {
+        if (body.action && body.action !== 'password') {
+            throw new Error('Navidrome does not support this authentication method');
+        }
+
         const cleanServerUrl = url.replace(/\/$/, '');
 
         const res = await ndApiClient({ server: null, url: cleanServerUrl }).authenticate({
