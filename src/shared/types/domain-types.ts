@@ -240,6 +240,22 @@ export type Artist = Omit<AlbumArtist, '_itemType'> & {
     _itemType: LibraryItem.ARTIST;
 };
 
+// Quick Connect is Jellyfin-specific. Rather than adding a separate controller
+// endpoint per Quick Connect step, they're all routed through `authenticate`
+// via the `action` discriminant so the per-server controller surface doesn't
+// grow with every server-specific auth flow.
+export type AuthenticateBody =
+    | { action: 'isQuickConnectEnabled' }
+    | { action: 'quickConnectAuthenticate'; secret: string }
+    | { action: 'quickConnectInitiate' }
+    | { action: 'quickConnectState'; secret: string }
+    | { action?: 'password'; legacy?: boolean; password: string; username: string };
+
+export type AuthenticateResult =
+    | AuthenticationResponse
+    | boolean
+    | { code: string; secret: string };
+
 export type AuthenticationResponse = {
     credential: string;
     isAdmin?: boolean;
@@ -1553,11 +1569,7 @@ export type ArtistRadioQuery = {
 
 export type ControllerEndpoint = {
     addToPlaylist: (args: AddToPlaylistArgs) => Promise<AddToPlaylistResponse>;
-    authenticate: (
-        url: string,
-        body: { legacy?: boolean; password: string; username: string },
-    ) => Promise<AuthenticationResponse>;
-    authenticateWithQuickConnect?: (url: string, secret: string) => Promise<AuthenticationResponse>;
+    authenticate: (url: string, body: AuthenticateBody) => Promise<AuthenticateResult>;
     createFavorite: (args: FavoriteArgs) => Promise<FavoriteResponse>;
     createInternetRadioStation: (
         args: CreateInternetRadioStationArgs,
@@ -1616,11 +1628,8 @@ export type ControllerEndpoint = {
     getTopSongs: (args: TopSongListArgs) => Promise<TopSongListResponse>;
     getUserInfo: (args: UserInfoArgs) => Promise<UserInfoResponse>;
     getUserList?: (args: UserListArgs) => Promise<UserListResponse>;
-    isQuickConnectEnabled?: (url: string) => Promise<boolean>;
     jukeboxControl?: (args: JukeboxControlArgs) => Promise<JukeboxControlResponse>;
     movePlaylistItem?: (args: MoveItemArgs) => Promise<void>;
-    quickConnectInitiate?: (url: string) => Promise<{ code: string; secret: string }>;
-    quickConnectState?: (url: string, secret: string) => Promise<boolean>;
     refreshItems: (args: RefreshItemsArgs) => Promise<RefreshItemsResponse>;
     removeFromPlaylist: (args: RemoveFromPlaylistArgs) => Promise<RemoveFromPlaylistResponse>;
     replacePlaylist: (args: ReplacePlaylistArgs) => Promise<ReplacePlaylistResponse>;
@@ -1694,11 +1703,7 @@ export type InternalControllerEndpoint = {
     addToPlaylist: (
         args: ReplaceApiClientProps<AddToPlaylistArgs>,
     ) => Promise<AddToPlaylistResponse>;
-    authenticate: (
-        url: string,
-        body: { legacy?: boolean; password: string; username: string },
-    ) => Promise<AuthenticationResponse>;
-    authenticateWithQuickConnect?: (url: string, secret: string) => Promise<AuthenticationResponse>;
+    authenticate: (url: string, body: AuthenticateBody) => Promise<AuthenticateResult>;
     createFavorite: (args: ReplaceApiClientProps<FavoriteArgs>) => Promise<FavoriteResponse>;
     createInternetRadioStation: (
         args: ReplaceApiClientProps<CreateInternetRadioStationArgs>,
@@ -1794,13 +1799,10 @@ export type InternalControllerEndpoint = {
     getTopSongs: (args: ReplaceApiClientProps<TopSongListArgs>) => Promise<TopSongListResponse>;
     getUserInfo: (args: ReplaceApiClientProps<UserInfoArgs>) => Promise<UserInfoResponse>;
     getUserList?: (args: ReplaceApiClientProps<UserListArgs>) => Promise<UserListResponse>;
-    isQuickConnectEnabled?: (url: string) => Promise<boolean>;
     jukeboxControl?: (
         args: ReplaceApiClientProps<JukeboxControlArgs>,
     ) => Promise<JukeboxControlResponse>;
     movePlaylistItem?: (args: ReplaceApiClientProps<MoveItemArgs>) => Promise<void>;
-    quickConnectInitiate?: (url: string) => Promise<{ code: string; secret: string }>;
-    quickConnectState?: (url: string, secret: string) => Promise<boolean>;
     refreshItems: (args: ReplaceApiClientProps<RefreshItemsArgs>) => Promise<RefreshItemsResponse>;
     removeFromPlaylist: (
         args: ReplaceApiClientProps<RemoveFromPlaylistArgs>,
